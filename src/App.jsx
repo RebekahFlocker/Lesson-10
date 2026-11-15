@@ -5,6 +5,7 @@ const initialState = {
  isLoading: false, 
  isError: false, 
  searchTerm: 'react',
+ // url here?
 }; 
  
 function storiesReducer(state, action) { 
@@ -29,6 +30,7 @@ const DEFAULT_QUERY = 'redux'; // default search is react. called from below
 const PATH_BASE = 'https://hn.algolia.com/api/v1'; // main/ starting link
 const PATH_SEARCH = '/search'; // sets the endpoint for story/data search
 const PARAM_SEARCH = 'query='; // search parameter based on search term
+// better defined const url here?
 
 function App() { 
  const inputRef = useRef(); // focuse on search box after page renders. 
@@ -53,7 +55,7 @@ function App() {
       });
       fetchData(); 
     }, 
-      [url] });
+      [url] }); // why is this causing an error when it is defined?
     
       {/* // Testbook pg. 87, 102 + Tutorial: https://youtu.be/ZtFeOiylMr8?si=WvCLnGVEsYXJ5pX9 
       } fetch(url) // url is requested & was already stated/ created in the useState above 
