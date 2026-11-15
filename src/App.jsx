@@ -1,165 +1,110 @@
-import { useEffect, useRef, useReducer } from 'react';
-import './App.css';
+import { useState, useEffect, useRef, useReducer, useCallback } from 'react'; 
+ 
+const initialState = { 
+ data: [], 
+ isLoading: false, 
+ isError: false, 
+ searchTerm: 'react',
+}; 
+ 
+function storiesReducer(state, action) { 
+ switch (action.type) { 
+   case 'FETCH_INIT': // fetch loading
+     return { ...state, isLoading: true, isError: false }; 
+   case 'FETCH_SUCCESS': // articles fetched
+     return { ...state, isLoading: false, data: action.payload }; 
+   case 'FETCH_FAILURE': // fetch failed
+     return { ...state, isLoading: false, isError: true }; 
+   case 'REMOVE_ITEM': 
+     return { ...state, data: state.data.filter(item => item.objectID !== action.payload) }; 
+   case 'SET_SEARCH_TERM': 
+     return { ...state, searchTerm: action.payload }; 
+   default: 
+    throw new Error(); 
+ } 
+} 
 
-// useReducer + article content
-const initialState = {
-  data: [],
-  isLoading: false,
-  isError: false,
-  searchTerm: 'react',
-  url: 'https://hn.algolia.com/api/v1/search?query=react',
-};
+// Textbook pg. 86
+const DEFAULT_QUERY = 'redux'; // default search is react. called from below
+const PATH_BASE = 'https://hn.algolia.com/api/v1'; // main/ starting link
+const PATH_SEARCH = '/search'; // sets the endpoint for story/data search
+const PARAM_SEARCH = 'query='; // search parameter based on search term
 
-// Reducer function + state 
-function storiesReducer(state, action) {
-  switch (action.type) {
-    case 'FETCH_INIT':
-      return { 
-        ...state, 
-        isLoading: true, 
-        isError: false 
-      };
-    case 'FETCH_SUCCESS':
-      return { 
-        ...state, 
-        isLoading: false, 
-        isError: false,
-        data: action.payload 
-      };
-    case 'FETCH_FAILURE':
-      return { 
-        ...state, 
-        isLoading: false, 
-        isError: true 
-      };
-    case 'REMOVE_ITEM':
-      return { 
-        ...state, 
-        data: state.data.filter((item) => item.objectID !== action.payload) 
-      };
-    case 'SET_SEARCH_TERM':
-      return { 
-        ...state, 
-        searchTerm: action.payload 
-      };
-    case 'SET_URL':
-      return { 
-        ...state, 
-        url: action.payload 
-      };
-    default:
-      throw new Error(`Unhandled action type: ${action.type}`);
-  }
-}
+function App() { 
+ const inputRef = useRef(); // focuse on search box after page renders. 
+ const [state, dispatch] = useReducer(storiesReducer, initialState); 
+ // combines the 4 previous const to create a full url thats search based.
+ const [url, setUrl] = useState(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${DEFAULT_QUERY}`);
+ 
+ console.log(url); // adds url to the console for debugging
+  
+ 
+ 
+  useEffect (() => {  // fetches data from the url when site is first rendered  
+    const fetchData = async () => { 
+      const result = await fetch(url); // fetches url + returns promise
+      result.json().then(data => {
+        dispatch({ type: 'FETCH_SUCCESS', payload: data.hits });
+        dispatch({ type: 'FETCH_INIT' }); // fetch is starting = loading
+      })
+      .catch (error => {
+        // when failed log the error in reducer (makes new state)
+        dispatch({ type: 'FETCH_FAILURE' });
+      });
+      fetchData(); 
+    }, 
+      [url] });
+    
+      {/* // Testbook pg. 87, 102 + Tutorial: https://youtu.be/ZtFeOiylMr8?si=WvCLnGVEsYXJ5pX9 
+      } fetch(url) // url is requested & was already stated/ created in the useState above 
+      .then(response => response.json()) // converts from JSON to JSX
+      .then(data => {
+        // when successful send the articles
+        dispatch({ type: 'FETCH_SUCCESS', payload: data.hits });
+} ) */}
+      
 
-function App() {
-  // React input
-  const inputRef = useRef();
-
-  const [state, dispatch] = useReducer(storiesReducer, initialState);
-
-  // Data fetching
-  useEffect(() => {
-    let isSubscribed = true; // Prevents state updates on unmounted components
-
-    const fetchStories = async () => {
-      dispatch({ type: 'FETCH_INIT' });
-
-      try {
-        const response = await fetch(state.url);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const result = await response.json();
+  return ( 
+    <div> 
+      <h1>My Articles</h1> 
+      <div className = "search"> 
+          <form onSubmit={event => { // textbook pg. 99
+            event.preventDefault(); // prevents page loading when search is clicked
+            // how can I call on this in the App funtion above? instead of repeating this line?
+            setUrl(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${state.searchTerm}`); 
+          }} className="search-form">
+            <input
+              // react search box
+              type="text"
+              value={state.searchTerm} // when text values change, state is updated
+              // carries data to reducer after every letter input
+              onChange={event => // 
+                dispatch({ type: 'SET_SEARCH_TERM', payload: event.target.value })}
         
-        if (isSubscribed) {
-          dispatch({ 
-            type: 'FETCH_SUCCESS', 
-            payload: result.hits 
-          });
-        }
-      } catch (error) {
-        if (isSubscribed) {
-          dispatch({ type: 'FETCH_FAILURE' });
-        }
-      }
-    };
-
-    fetchStories();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [state.url]);
-
-  // Form handler search
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    dispatch({
-      type: 'SET_URL',
-      payload: `https://hn.algolia.com/api/v1/search?query=${state.searchTerm}`,
-    });
-  };
-
-  return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>My Articles</h1>
-
-      {/* Search Form */}
-      <form onSubmit={handleSearchSubmit} style={{ marginBottom: '20px' }}>
-        <input
-          ref={inputRef} // Imperative DOM access
-          type="text"
-          value={state.searchTerm}
-          onChange={(e) =>
-            dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value })
-          }
-          placeholder="Search articles..."
-        />
+              ref={inputRef} /> {/*calls useRef + text box interactions*/}
+          
+            <button type= "submit" >
+              Search
+            </button>
+            
+          </form>
+        </div> 
+        {/* returns loading or error states to the user, when applicable. Textbook pg. 115, 116*/}
+        {state.isLoading &&<p>Loading...</p>}
+        {state.isError && <p>Loading Error!</p>}
         
-        <button
-          type="submit"
-          onClick={() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
-            }
-          }}
-          style={{ marginLeft: '8px' }}
-        >
-          Search
-        </button>
-      </form>
-
-      {/* Loading + errors */}
-      {state.isError && (
-        <p style={{ color: 'red' }}>Something went wrong while fetching articles...</p>
-      )}
-
-      {state.isLoading ? (
-        <p>Loading articles...</p>
-      ) : (
-        // dismissal
-        <ul>
-          {state.data.map((item) => (
-            <li key={item.objectID} style={{ marginBottom: '8px' }}>
-              <a href={item.url} target="_blank" rel="noopener noreferrer">
-                {item.title || item.story_title || 'Untitled Article'}
-              </a>
-              
-              <button
-                onClick={() =>
-                  dispatch({ type: 'REMOVE_ITEM', payload: item.objectID })
-                }
-                style={{ marginLeft: '10px' }}
-              >
-                Dismiss
-              </button>
-            </li>
+        <ul className="page">
+          {/* runs every article to return a bullet */}
+          {state.data.map(item => ( 
+            <li key={item.ID}> {/* only changed items rerender*/}
+              {item.title} </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
-}
-
-export default App;
+        
+        {/* working on adding X button to delete articles. 
+        + linking the actual article and redirect to the API from the title */}
+    </div> 
+  ); 
+} 
+ 
+export default App; 
