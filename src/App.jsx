@@ -5,7 +5,6 @@ const initialState = {
  isLoading: false, 
  isError: false, 
  searchTerm: 'react',
- // url here?
 }; 
  
 function storiesReducer(state, action) { 
@@ -30,7 +29,6 @@ const DEFAULT_QUERY = 'redux'; // default search is react. called from below
 const PATH_BASE = 'https://hn.algolia.com/api/v1'; // main/ starting link
 const PATH_SEARCH = '/search'; // sets the endpoint for story/data search
 const PARAM_SEARCH = 'query='; // search parameter based on search term
-// better defined const url here?
 
 function App() { 
  const inputRef = useRef(); // focuse on search box after page renders. 
@@ -44,26 +42,24 @@ function App() {
  
   useEffect (() => {  // fetches data from the url when site is first rendered  
     const fetchData = async () => { 
+      dispatch({ type: 'FETCH_INIT' }); // fetch is starting = loading
+      
+      try {
       const result = await fetch(url); // fetches url + returns promise
-      result.json().then(data => {
+      if (!result.ok) { // (!)not ok? / if failed then throw error
+        throw new Error('Failed to Fetch Articles'); // does this call from the default in the reducer?
+      }
+      const data = await result.json();
         dispatch({ type: 'FETCH_SUCCESS', payload: data.hits });
-        dispatch({ type: 'FETCH_INIT' }); // fetch is starting = loading
-      })
-      .catch (error => {
-        // when failed log the error in reducer (makes new state)
+      } 
+      catch (error) {
+        console.error (error); // log error
+        // when failed, state the error in reducer (makes new state)
         dispatch({ type: 'FETCH_FAILURE' });
-      });
+      }};
       fetchData(); 
     }, 
-      [url] }); // why is this causing an error when it is defined?
-    
-      {/* // Testbook pg. 87, 102 + Tutorial: https://youtu.be/ZtFeOiylMr8?si=WvCLnGVEsYXJ5pX9 
-      } fetch(url) // url is requested & was already stated/ created in the useState above 
-      .then(response => response.json()) // converts from JSON to JSX
-      .then(data => {
-        // when successful send the articles
-        dispatch({ type: 'FETCH_SUCCESS', payload: data.hits });
-} ) */}
+      [url]); 
       
 
   return ( 
@@ -98,13 +94,17 @@ function App() {
         <ul className="page">
           {/* runs every article to return a bullet */}
           {state.data.map(item => ( 
-            <li key={item.ID}> {/* only changed items rerender*/}
-              {item.title} </li>
+            <li key={item.objectID}> {/* only changed items rerender + I added object because thats what makes the ID unique*/}
+              <a href={item.url}> {/* I forgot to add this herf attribute to link the url to the title */}
+            {item.title} </a>
+              <button onClick={() => 
+                dispatch({ type: 'REMOVE_ITEM', payload: item.objectID })}> {/*} inline handler */}
+                  X
+                </button> </li>
           ))}
         </ul>
         
-        {/* working on adding X button to delete articles. 
-        + linking the actual article and redirect to the API from the title */}
+        
     </div> 
   ); 
 } 
